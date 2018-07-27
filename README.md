@@ -1,4 +1,4 @@
 # ryan_repo
 A place for Ryans to be Ryans.
 
-A place for Annas not to bother Ryans. Her cats are welcome though.
+A place for Annas cats to share a hug with the Ryans.
