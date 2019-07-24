@@ -3,10 +3,11 @@
 from models import User, Movie
 import os, json, webapp2, jinja2
 from google.appengine.api import users, urlfetch
+from google.appengine.ext import ndb
 
 
 api_key = "3f44093c7132e8d90dfece35961ffafa"
-
+PARENT_KEY = ndb.Key("Entity", "user_parent_key_to_guarantee_strong_consistency")
 jinja_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
     extensions=['jinja2.ext.autoescape'],
@@ -40,6 +41,7 @@ def search_movies(search_term):
 class MainPage(webapp2.RequestHandler):
 
     def get(self): #for a GET request
+
         user = users.get_current_user()
         registered_user = None
         # print(user.nickname())
@@ -48,7 +50,7 @@ class MainPage(webapp2.RequestHandler):
             is_logged_in = False
         else:
             button_url = users.create_logout_url('/')
-            registered_user = User.query().filter(User.email == user.nickname()).get()
+            registered_user = User.query(ancestor=PARENT_KEY).filter(User.email == user.nickname()).get()
             is_logged_in = True
         main_data = {
             "is_logged_in" : is_logged_in,
@@ -56,10 +58,15 @@ class MainPage(webapp2.RequestHandler):
             "user" : registered_user
         }
 
+        print(main_data)
         main_template = jinja_env.get_template('templates/main.html')
         self.response.write(main_template.render(main_data))
 
 class LoginHandler(webapp2.RequestHandler):
+
+    @ndb.transactional
+    def insert_transaction(self, user):
+        user.put()
 
     def get(self):
         user = users.get_current_user()
@@ -72,11 +79,12 @@ class LoginHandler(webapp2.RequestHandler):
 
     def post(self):
         new_user = User(
+            parent = PARENT_KEY,
             first_name=self.request.get('first_name'),
             last_name=self.request.get('last_name'),
             email = users.get_current_user().nickname()
         )
-        new_user.put()
+        self.insert_transaction(new_user)
         self.redirect('/')
 
 class SearchPage(webapp2.RequestHandler):
